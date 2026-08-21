@@ -1,0 +1,142 @@
+@startuml data-model
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+hide empty members
+
+abstract class TimeStampedModel {
+  +created_at : datetime
+  +updated_at : datetime
+}
+
+class User {
+  +id : UUID
+  +email : str «unique, ci»
+  +full_name : str
+  +role : Role
+  +is_active : bool
+  +is_staff : bool
+  +is_superuser : bool
+  +created_at : datetime
+  +updated_at : datetime
+}
+enum Role {
+  EMPLOYEE
+  APPROVER
+  ADMIN
+}
+
+class ExpenseCategory {
+  +id : UUID
+  +code : str «unique, upper»
+  +name : str
+  +active : bool
+}
+
+class ExpenseReport {
+  +id : UUID
+  +title : str
+  +status : ReportStatus
+  +submitted_at : datetime
+}
+enum ReportStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+  PAID
+}
+
+class Expense {
+  +id : UUID
+  +merchant : str
+  +expense_date : date
+  +currency : str
+  +amount_minor : bigint
+  +tax_rate_bps : int
+  +tax_amount_minor : bigint
+  +total_amount_minor : bigint
+  +tax_included : bool
+  +status : ReportStatus
+}
+
+class WarningRule {
+  +id : UUID
+  +name : str
+  +currency : str
+  +threshold_minor : bigint
+  +severity : Severity
+  +message : str
+  +active : bool
+}
+enum Severity {
+  INFO
+  WARNING
+  BLOCKING
+}
+
+class ExpenseWarning {
+  +id : UUID
+  +severity : Severity
+  +message : str
+  +created_at : datetime
+}
+
+class ApprovalStep {
+  +id : UUID
+  +step_order : int
+  +status : StepStatus
+  +decided_at : datetime
+  +comment : str
+  +created_at : datetime
+  +updated_at : datetime
+}
+enum StepStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SKIPPED
+}
+
+class ApprovalEvent {
+  +id : UUID
+  +action : Action
+  +comment : str
+  +created_at : datetime
+}
+enum Action {
+  SUBMITTED
+  APPROVED
+  REJECTED
+  COMMENTED
+  RETURNED_TO_DRAFT
+  PAID
+}
+
+TimeStampedModel <|-- User
+TimeStampedModel <|-- ExpenseCategory
+TimeStampedModel <|-- ExpenseReport
+TimeStampedModel <|-- Expense
+TimeStampedModel <|-- WarningRule
+TimeStampedModel <|-- ApprovalStep
+
+User ..> Role
+ExpenseReport ..> ReportStatus
+Expense ..> ReportStatus
+WarningRule ..> Severity
+ExpenseWarning ..> Severity
+ApprovalStep ..> StepStatus
+ApprovalEvent ..> Action
+
+User "1" --> "0..*" ExpenseReport : owns (PROTECT)
+User "1" --> "0..*" Expense : incurs (PROTECT)
+ExpenseReport "1" --> "1..*" Expense : contains (CASCADE)
+ExpenseCategory "0..1" --> "0..*" Expense : categorizes (PROTECT)
+ExpenseCategory "0..1" --> "0..*" WarningRule : scopes (PROTECT)
+Expense "1" --> "0..*" ExpenseWarning : raises (CASCADE)
+WarningRule "0..1" --> "0..*" ExpenseWarning : snapshot of (SET_NULL)
+ExpenseReport "1" --> "0..*" ApprovalStep : has (CASCADE)
+User "1" --> "0..*" ApprovalStep : approves (PROTECT)
+ExpenseReport "1" --> "0..*" ApprovalEvent : audited by (CASCADE)
+User "1" --> "0..*" ApprovalEvent : acts on (PROTECT)
+
+@enduml
